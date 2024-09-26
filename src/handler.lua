@@ -12,7 +12,7 @@ local validate_realm_roles = require("kong.plugins.jwt-keycloak.validators.roles
 local validate_client_roles = require("kong.plugins.jwt-keycloak.validators.roles").validate_client_roles
 
 local re_gmatch = ngx.re.gmatch
-
+local decode_base64 = ngx.decode_base64
 local priority_env_var = "JWT_KEYCLOAK_PRIORITY"
 local priority
 if os.getenv(priority_env_var) then
@@ -26,6 +26,17 @@ local JwtKeycloakHandler = {
   VERSION = kong_meta.version,
   PRIORITY = priority,
 }
+
+local function custom_base64_decode(input)
+  local remainder = #input % 4
+  if remainder > 0 then
+    local padlen = 4 - remainder
+    input = input .. rep("=", padlen)
+  end
+
+  input = input:gsub("-", "+"):gsub("_", "/")
+  return decode_base64(input)
+end
 
 -------------------------------------------------------------------------------
 -- custom helper function of the extended plugin "jwt-keycloak"
@@ -66,10 +77,10 @@ local function custom_helper_issuer_get_keys(well_known_endpoint, cafile)
   if err then
       return nil, err
   end
-
+ 
   local decoded_keys = {}
   for i, key in ipairs(keys) do
-      decoded_keys[i] = jwt_decoder:base64_decode(key)
+      decoded_keys[i] = custom_base64_decode(key)
   end
 
   kong.log.debug('Number of keys retrieved: ' .. table.getn(decoded_keys))
@@ -89,17 +100,18 @@ end
 -------------------------------------------------------------------------------
 local function custom_validate_token_signature(conf, jwt, second_call)
   local issuer_cache_key = 'issuer_keys_' .. jwt.claims.iss
-
   local well_known_endpoint = keycloak_keys.get_wellknown_endpoint(conf.well_known_template, jwt.claims.iss)
+
   -- Retrieve public keys
   local public_keys, err = kong.cache:get(issuer_cache_key, nil, custom_helper_issuer_get_keys, well_known_endpoint, conf.cafile)
-
+  
   if not public_keys then
       if err then
           kong.log.err(err)
       end
       return kong.response.exit(403, { message = "Unable to get public key for issuer" })
   end
+
 
   -- Verify signatures
   for _, k in ipairs(public_keys.keys) do
