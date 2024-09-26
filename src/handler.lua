@@ -429,10 +429,31 @@ local function do_authentication(conf)
 end
 
 
+local function should_exclude_path(conf, path)
+  if not conf.exclude_paths or #conf.exclude_paths == 0 then
+      return false
+  end
+
+  for _, excluded_path in ipairs(conf.exclude_paths) do
+      if string.match(path, "^" .. excluded_path) then
+          return true
+      end
+  end
+
+  return false
+end
+
+
 function JwtKeycloakHandler:access(conf)
   -- check if preflight request and whether it should be authenticated
   if not conf.run_on_preflight and kong.request.get_method() == "OPTIONS" then
     return
+  end
+
+  local request_path = kong.request.get_path()
+  if should_exclude_path(conf, request_path) then
+      kong.log.debug("Path excluded from authentication: " .. request_path)
+      return
   end
 
   if conf.anonymous and kong.client.get_credential() then

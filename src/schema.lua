@@ -71,6 +71,11 @@ local schema = {
           { consumer_match_claim_custom_id = { type = "boolean", default = false }, },
           { consumer_match_ignore_not_found = { type = "boolean", default = false }, },
           { cafile = { type = "string" }, },
+          { exclude_paths = {
+            type = "array",
+            elements = { type = "string" },
+            default = {},
+          }, },
         },
       },
     },
