@@ -447,7 +447,8 @@ local function should_exclude_path(conf, path)
   end
 
   for _, excluded_path in ipairs(conf.exclude_paths) do
-      if string.match(path, "^" .. excluded_path) then
+      excluded_path_sanitized=string.gsub(excluded_path, "-", "%%-")
+      if string.match(path, "^" .. excluded_path_sanitized) then
           return true
       end
   end
