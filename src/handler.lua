@@ -442,20 +442,35 @@ end
 
 
 local function should_exclude_path(conf, path)
-  if not conf.exclude_paths or #conf.exclude_paths == 0 then
-      return false
-  end
+    -- If no exclude paths are configured, nothing should be excluded
+    if not conf.exclude_paths or #conf.exclude_paths == 0 then
+        return false
+    end
 
-  for _, excluded_path in ipairs(conf.exclude_paths) do
-      excluded_path_sanitized=string.gsub(excluded_path, "-", "%%-")
-      if string.match(path, "^" .. excluded_path_sanitized) then
-          return true
-      end
-  end
+    local is_excluded = false
+    
+    -- First check if path matches any exclude pattern
+    for _, excluded_path in ipairs(conf.exclude_paths) do
+        local excluded_path_sanitized = string.gsub(excluded_path, "-", "%%-")
+        if string.match(path, "^" .. excluded_path_sanitized) then
+            is_excluded = true
+            break
+        end
+    end
 
-  return false
+    -- If path is excluded and include_over_excluded_paths is configured
+    -- check if path should be included anyway
+    if is_excluded and conf.include_over_excluded_paths and #conf.include_over_excluded_paths > 0 then
+        for _, included_path in ipairs(conf.include_over_excluded_paths) do
+            local included_path_sanitized = string.gsub(included_path, "-", "%%-")
+            if string.match(path, "^" .. included_path_sanitized) then
+                return false  -- Path matches an inclusion pattern, so don't exclude it
+            end
+        end
+    end
+
+    return is_excluded
 end
-
 
 function JwtKeycloakHandler:access(conf)
   -- check if preflight request and whether it should be authenticated

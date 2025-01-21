@@ -76,6 +76,11 @@ local schema = {
             elements = { type = "string" },
             default = {},
           }, },
+	  { include_over_excluded_paths = {
+            type = "array",
+            elements = { type = "string" },
+            default = {},
+          }, },
         },
       },
     },
